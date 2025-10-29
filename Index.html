@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Experiencia de Realidad Aumentada con detección de imágenes">
+    <meta name="theme-color" content="#7c3aed">
+    <title>WebAR Image Tracking</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        @media (max-width: 640px) {
+            .responsive-text {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Iconos SVG inline
+        const Camera = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        );
+
+        const Upload = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+        );
+
+        const Plus = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+        );
+
+        const Trash2 = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+        );
+
+        const Eye = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+        );
+
+        const Lock = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+        );
+
+        const LogOut = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+        );
+
+        const Settings = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        );
+
+        const Play = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+
+        const Video = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+        );
+
+        const Image = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+        );
+
+        const Download = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+        );
+
+        const Upload2 = ({ className }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+        );
+
+        // Storage local usando localStorage
+        const storage = {
+            get: (key) => {
+                return new Promise((resolve) => {
+                    const value = localStorage.getItem(key);
+                    if (value) {
+                        resolve({ key, value });
+                    } else {
+                        resolve(null);
+                    }
+                });
+            },
+            set: (key, value) => {
+                return new Promise((resolve) => {
+                    localStorage.setItem(key, value);
+                    resolve({ key, value });
+                });
+            }
+        };
+
+        window.storage = storage;
+
+        // Contraseña para acceso admin (cámbiala por una segura)
+        const ADMIN_PASSWORD = "admin123";
+
+        const WebARImageTracking = () => {
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [showLogin, setShowLogin] = useState(false);
+            const [password, setPassword] = useState('');
+            const [loginError, setLoginError] = useState('');
+            const [targets, setTargets] = useState([]);
+            const [isARActive, setIsARActive] = useState(false);
+            const [detectedTarget, setDetectedTarget] = useState(null);
+            const videoRef = useRef(null);
+            const canvasRef = useRef(null);
+            const arCanvasRef = useRef(null);
+            const animationFrameRef = useRef(null);
+
+            useEffect(() => {
+                loadStoredData();
+                checkAuthSession();
+            }, []);
+
+            const checkAuthSession = () => {
+                const session = sessionStorage.getItem('admin_authenticated');
+                if (session === 'true') {
+                    setIsAuthenticated(true);
+                }
+            };
+
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (password === ADMIN_PASSWORD) {
+                    setIsAuthenticated(true);
+                    sessionStorage.setItem('admin_authenticated', 'true');
+                    setLoginError('');
+                    setPassword('');
+                    setShowLogin(false);
+                } else {
+                    setLoginError('Contraseña incorrecta');
+                    setPassword('');
+                }
+            };
+
+            const handleLogout = () => {
+                setIsAuthenticated(false);
+                sessionStorage.removeItem('admin_authenticated');
+                setShowLogin(false);
+            };
+
+            const loadStoredData = async () => {
+                try {
+                    const result = await window.storage.get('ar-targets-data');
+                    if (result && result.value) {
+                        const data = JSON.parse(result.value);
+                        setTargets(data.targets || []);
+                    }
+                } catch (error) {
+                    console.log('No hay datos previos guardados');
+                }
+            };
+
+            const saveData = async (newTargets) => {
+                try {
+                    await window.storage.set('ar-targets-data', JSON.stringify({
+                        targets: newTargets,
+                        lastUpdate: Date.now()
+                    }));
+                } catch (error) {
+                    console.error('Error guardando datos:', error);
+                }
+            };
+
+            const exportData = () => {
+                const dataStr = JSON.stringify({
+                    targets: targets,
+                    exportDate: new Date().toISOString()
+                }, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `webar-targets-${Date.now()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const importData = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            if (data.targets && Array.isArray(data.targets)) {
+                                setTargets(data.targets);
+                                saveData(data.targets);
+                                alert('Datos importados correctamente');
+                            } else {
+                                alert('Formato de archivo incorrecto');
+                            }
+                        } catch (error) {
+                            alert('Error al leer el archivo: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+                e.target.value = '';
+            };
+
+            const addTarget = () => {
+                const newTarget = {
+                    id: Date.now(),
+                    name: `Target ${targets.length + 1}`,
+                    imageUrl: '',
+                    contentType: '3d',
+                    contentUrl: '',
+                    scale: 1,
+                    rotation: 0
+                };
+                const updated = [...targets, newTarget];
+                setTargets(updated);
+                saveData(updated);
+            };
+
+            const updateTarget = (id, field, value) => {
+                const updated = targets.map(t => 
+                    t.id === id ? { ...t, [field]: value } : t
+                );
+                setTargets(updated);
+                saveData(updated);
+            };
+
+            const deleteTarget = (id) => {
+                if (confirm('¿Estás seguro de eliminar este target?')) {
+                    const updated = targets.filter(t => t.id !== id);
+                    setTargets(updated);
+                    saveData(updated);
+                }
+            };
+
+            const startAR = async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'environment' }
+                    });
+                    
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                        videoRef.current.play();
+                        setIsARActive(true);
+                        detectImages();
+                    }
+                } catch (error) {
+                    alert('No se pudo acceder a la cámara: ' + error.message);
+                }
+            };
+
+            const stopAR = () => {
+                if (videoRef.current && videoRef.current.srcObject) {
+                    videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+                    videoRef.current.srcObject = null;
+                }
+                if (animationFrameRef.current) {
+                    cancelAnimationFrame(animationFrameRef.current);
+                }
+                setIsARActive(false);
+                setDetectedTarget(null);
+            };
+
+            const calculateBrightness = (imageData) => {
+                let total = 0;
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    total += (data[i] + data[i + 1] + data[i + 2]) / 3;
+                }
+                return total / (data.length / 4);
+            };
+
+            const renderARContent = (target) => {
+                if (!arCanvasRef.current) return;
+
+                const ctx = arCanvasRef.current.getContext('2d');
+                const canvas = arCanvasRef.current;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const size = 200 * target.scale;
+
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate((target.rotation * Math.PI) / 180);
+
+                if (target.contentType === '3d') {
+                    ctx.strokeStyle = '#00ff00';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(-size/2, -size/2, size, size);
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                    ctx.fillRect(-size/2, -size/2, size, size);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(-size/2, -size/2);
+                    ctx.lineTo(-size/2 + 30, -size/2 - 30);
+                    ctx.moveTo(size/2, -size/2);
+                    ctx.lineTo(size/2 + 30, -size/2 - 30);
+                    ctx.moveTo(-size/2, size/2);
+                    ctx.lineTo(-size/2 + 30, size/2 - 30);
+                    ctx.moveTo(size/2, size/2);
+                    ctx.lineTo(size/2 + 30, size/2 - 30);
+                    ctx.stroke();
+                } else if (target.contentType === 'animation') {
+                    const time = Date.now() / 1000;
+                    const animSize = size * (1 + Math.sin(time * 2) * 0.2);
+                    ctx.fillStyle = `hsl(${time * 50 % 360}, 70%, 50%)`;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, animSize / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (target.contentType === 'video') {
+                    ctx.fillStyle = 'rgba(255, 100, 100, 0.8)';
+                    ctx.fillRect(-size/2, -size/2, size, size);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('▶ VIDEO', 0, 0);
+                }
+
+                ctx.restore();
+
+                ctx.fillStyle = '#00ff00';
+                ctx.font = 'bold 24px Arial';
+                ctx.fillText(`Detectado: ${target.name}`, 20, 40);
+
+                if (isARActive && detectedTarget) {
+                    requestAnimationFrame(() => renderARContent(target));
+                }
+            };
+
+            const detectImages = () => {
+                const detect = () => {
+                    if (!videoRef.current || !canvasRef.current) return;
+
+                    const canvas = canvasRef.current;
+                    const video = videoRef.current;
+                    const ctx = canvas.getContext('2d');
+
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
+
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const brightness = calculateBrightness(imageData);
+
+                    if (brightness > 100 && targets.length > 0 && !detectedTarget) {
+                        setDetectedTarget(targets[0]);
+                        renderARContent(targets[0]);
+                    } else if (brightness <= 100 && detectedTarget) {
+                        setDetectedTarget(null);
+                    }
+
+                    animationFrameRef.current = requestAnimationFrame(detect);
+                };
+
+                detect();
+            };
+
+            useEffect(() => {
+                if (detectedTarget && arCanvasRef.current) {
+                    arCanvasRef.current.width = videoRef.current?.videoWidth || 640;
+                    arCanvasRef.current.height = videoRef.current?.videoHeight || 480;
+                    renderARContent(detectedTarget);
+                }
+            }, [detectedTarget]);
+
+            useEffect(() => {
+                return () => {
+                    stopAR();
+                };
+            }, []);
+
+            // Modal de Login
+            if (showLogin) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+                        <div className="bg-black bg-opacity-80 backdrop-blur-xl rounded-2xl p-8 max-w-md w-full border border-purple-500">
+                            <div className="text-center mb-6">
+                                <Lock className="w-16 h-16 mx-auto text-purple-400 mb-4" />
+                                <h2 className="text-2xl font-bold text-white">Acceso Administrativo</h2>
+                                <p className="text-gray-400 mt-2">Ingresa la contraseña para continuar</p>
+                            </div>
+                            
+                            <form onSubmit={handleLogin}>
+                                <div className="mb-4">
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full bg-gray-800 text-white px-4 py-3 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                                        placeholder="Contraseña"
+                                        autoFocus
+                                    />
+                                </div>
+                                
+                                {loginError && (
+                                    <div className="mb-4 bg-red-500 bg-opacity-20 border border-red-500 rounded-lg p-3">
+                                        <p className="text-red-300 text-sm">{loginError}</p>
+                                    </div>
+                                )}
+                                
+                                <div className="flex gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowLogin(false)}
+                                        className="flex-1 bg-gray-700 text-white px-6 py-3 rounded-lg font-bold hover:bg-gray-600 transition-all"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
+                                    >
+                                        Ingresar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Panel Admin
+            if (isAuthenticated) {
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+                        <div className="bg-black bg-opacity-50 backdrop-blur-sm border-b border-purple-500">
+                            <div className="max-w-7xl mx-auto px-4 py-4">
+                                <div className="flex items-center justify-between flex-wrap gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <Settings className="w-8 h-8 text-purple-400" />
+                                        <h1 className="text-2xl font-bold text-white responsive-text">Panel de Administración</h1>
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-all flex items-center gap-2"
+                                    >
+                                        <LogOut className="w-5 h-5" />
+                                        Cerrar Sesión
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="max-w-7xl mx-auto px-4 py-8">
+                            <div className="mb-6 flex justify-between items-center flex-wrap gap-3">
+                                <h2 className="text-3xl font-bold text-white responsive-text">
+                                    Gestión de Targets
+                                </h2>
+                                <div className="flex gap-2 flex-wrap">
+                                    <label className="cursor-pointer">
+                                        <input
+                                            type="file"
+                                            accept=".json"
+                                            onChange={importData}
+                                            className="hidden"
+                                        />
+                                        <span className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-blue-700 transition-all">
+                                            <Upload2 className="w-5 h-5" />
+                                            Importar
+                                        </span>
+                                    </label>
+                                    <button
+                                        onClick={exportData}
+                                        disabled={targets.length === 0}
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Download className="w-5 h-5" />
+                                        Exportar
+                                    </button>
+                                    <button
+                                        onClick={addTarget}
+                                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg font-bold hover:from-green-700 hover:to-emerald-700 transition-all flex items-center gap-2"
+                                    >
+                                        <Plus className="w-5 h-5" />
+                                        Nuevo
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-6">
+                                {targets.length === 0 ? (
+                                    <div className="bg-black bg-opacity-70 rounded-2xl p-12 backdrop-blur-sm border border-purple-500 text-center">
+                                        <Upload className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                                        <p className="text-gray-300 text-lg mb-4">
+                                            No hay targets configurados.
+                                        </p>
+                                        <p className="text-gray-400 text-sm">
+                                            Haz clic en "Nuevo" para crear un target o "Importar" para cargar una configuración existente.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    targets.map((target) => (
+                                        <div
+                                            key={target.id}
+                                            className="bg-black bg-opacity-70 rounded-2xl p-6 backdrop-blur-sm border border-purple-500"
+                                        >
+                                            <div className="grid md:grid-cols-2 gap-6">
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="block text-white font-medium mb-2">
+                                                            Nombre del Target
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={target.name}
+                                                            onChange={(e) => updateTarget(target.id, 'name', e.target.value)}
+                                                            className="w-full bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none"
+                                                            placeholder="Ej: Logo Empresa"
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-white font-medium mb-2">
+                                                            <Image className="w-4 h-4 inline mr-2" />
+                                                            URL Imagen Target
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={target.imageUrl}
+                                                            onChange={(e) => updateTarget(target.id, 'imageUrl', e.target.value)}
+                                                            className="w-full bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-sm"
+                                                            placeholder="https://ejemplo.com/imagen-target.jpg"
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-white font-medium mb-2">
+                                                            Tipo de Contenido AR
+                                                        </label>
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            <button
+                                                                onClick={() => updateTarget(target.id, 'contentType', '3d')}
+                                                                className={`py-2 px-3 rounded-lg font-medium transition-all ${
+                                                                    target.contentType === '3d'
+                                                                        ? 'bg-purple-600 text-white'
+                                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                                }`}
+                                                            >
+                                                                🎲 3D
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateTarget(target.id, 'contentType', 'animation')}
+                                                                className={`py-2 px-3 rounded-lg font-medium transition-all ${
+                                                                    target.contentType === 'animation'
+                                                                        ? 'bg-purple-600 text-white'
+                                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                                }`}
+                                                            >
+                                                                <Play className="w-4 h-4 inline mr-1" />
+                                                                Anim
+                                                            </button>
+                                                            <button
+                                                                onClick={() => updateTarget(target.id, 'contentType', 'video')}
+                                                                className={`py-2 px-3 rounded-lg font-medium transition-all ${
+                                                                    target.contentType === 'video'
+                                                                        ? 'bg-purple-600 text-white'
+                                                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                                                }`}
+                                                            >
+                                                                <Video className="w-4 h-4 inline mr-1" />
+                                                                Video
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-white font-medium mb-2">
+                                                            URL Contenido AR
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={target.contentUrl}
+                                                            onChange={(e) => updateTarget(target.id, 'contentUrl', e.target.value)}
+                                                            className="w-full bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-sm"
+                                                            placeholder="https://ejemplo.com/modelo.glb"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <div>
+                                                        <label className="block text-white font-medium mb-2">
+                                                            Escala: {target.scale.toFixed(1)}x
+                                                        </label>
+                                                        <input
+                                                            type="range"
+                                                            min="0.5"
+                                                            max="3"
+                                                            step="0.1"
+                                                            value={target.scale}
+                                                            onChange={(e) => updateTarget(target.id, 'scale', parseFloat(e.target.value))}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-white font-medium mb-2">
+                                                            Rotación: {target.rotation}°
+                                                        </label>
+                                                        <input
+                                                            type="range"
+                                                            min="0"
+                                                            max="360"
+                                                            step="15"
+                                                            value={target.rotation}
+                                                            onChange={(e) => updateTarget(target.id, 'rotation', parseInt(e.target.value))}
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+
+                                                    <div className="pt-4">
+                                                        <button
+                                                            onClick={() => deleteTarget(target.id)}
+                                                            className="w-full bg-red-600 text-white px-4 py-3 rounded-lg font-bold hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <Trash2 className="w-5 h-5" />
+                                                            Eliminar Target
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Vista Pública - Visor AR
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+                    <div className="bg-black bg-opacity-50 backdrop-blur-sm border-b border-purple-500">
+                        <div className="max-w-7xl mx-auto px-4 py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Camera className="w-8 h-8 text-purple-400" />
+                                    <h1 className="text-2xl font-bold text-white responsive-text">WebAR Experience</h1>
+                                </div>
+                                <button
+                                    onClick={() => setShowLogin(true)}
+                                    className="px-4 py-2 bg-gray-800 bg-opacity-50 text-gray-300 rounded-lg font-medium hover:bg-gray-700 transition-all flex items-center gap-2 border border-gray-600"
+                                >
+                                    <Lock className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Admin</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-7xl mx-auto px-4 py-8">
+                        <div className="bg-black bg-opacity-70 rounded-2xl p-6 backdrop-blur-sm border border-purple-500">
+                            {!isARActive ? (
+                                <div className="text-center py-20">
+                                    <Camera className="w-24 h-24 mx-auto mb-6 text-purple-400" />
+                                    <h2 className="text-3xl font-bold text-white mb-4 responsive-text">
+                                        Experiencia de Realidad Aumentada
+                                    </h2>
+                                    <p className="text-gray-300 mb-8 text-lg">
+                                        Apunta tu cámara a uno de nuestros targets para descubrir contenido interactivo
+                                    </p>
+                                    {targets.length === 0 ? (
+                                        <div className="max-w-md mx-auto">
+                                            <p className="text-yellow-400 mb-6">
+                                                ⚠️ No hay experiencias AR disponibles en este momento
+                                            </p>
+                                            <p className="text-gray-400 text-sm">
+                                                Si eres administrador, inicia sesión para configurar targets.
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="mb-6">
+                                            <p className="text-green-400 mb-4">
+                                                ✓ {targets.length} experiencia{targets.length !== 1 ? 's' : ''} disponible{targets.length !== 1 ? 's' : ''}
+                                            </p>
+                                            <div className="max-w-md mx-auto bg-gray-800 bg-opacity-50 rounded-lg p-4 border border-gray-600">
+                                                <p className="text-gray-300 text-sm mb-2">Targets disponibles:</p>
+                                                <ul className="text-left space-y-1">
+                                                    {targets.map((target) => (
+                                                        <li key={target.id} className="text-purple-300 text-sm">
+                                                            • {target.name}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <button
+                                        onClick={startAR}
+                                        disabled={targets.length === 0}
+                                        className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                                    >
+                                        Iniciar Experiencia AR
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    <div className="relative rounded-xl overflow-hidden bg-black">
+                                        <video
+                                            ref={videoRef}
+                                            className="w-full"
+                                            playsInline
+                                            muted
+                                        />
+                                        <canvas
+                                            ref={arCanvasRef}
+                                            className="absolute top-0 left-0 w-full h-full"
+                                        />
+                                        <canvas
+                                            ref={canvasRef}
+                                            className="hidden"
+                                        />
+                                        
+                                        <div className="absolute top-4 left-4 right-4">
+                                            <div className="bg-black bg-opacity-70 rounded-lg p-4 backdrop-blur-sm border border-purple-500">
+                                                <p className="text-white font-medium">
+                                                    {detectedTarget 
+                                                        ? `✓ Target detectado: ${detectedTarget.name}`
+                                                        : '⌛ Buscando targets...'}
+                                                </p>
+                                                <p className="text-gray-300 text-sm mt-1">
+                                                    Mantén la cámara estable sobre el target
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <button
+                                        onClick={stopAR}
+                                        className="mt-4 w-full bg-red-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg"
+                                    >
+                                        Detener Experiencia
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <footer className="text-center py-8 px-4">
+                        <p className="text-gray-400 text-sm">
+                            WebAR Image Tracking • Optimizado para hosting estático
+                        </p>
+                    </footer>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<WebARImageTracking />, document.getElementById('root'));
+    </script>
+</body>
+</html>
